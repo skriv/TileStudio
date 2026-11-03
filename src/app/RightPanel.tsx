@@ -37,7 +37,7 @@ import {
   toast,
 } from '../state/store';
 import { resolveZoneLayout } from '../features/viewport/zoneLayout';
-import { NumField, Section, TextField } from './fields';
+import { GroutColorField, NumField, Section, TextField } from './fields';
 
 export function RightPanel() {
   const view = useStore((s) => s.view);
@@ -513,13 +513,8 @@ function ZonePanel({ zoneId }: { zoneId: string }) {
               })()}
             </b>
           </div>
-          <div className="grid2">
-            <NumField label="Шов" value={a.groutMm} min={0} max={30} step={0.5} onCommit={(v) => updateAssignment(zone.id, { groutMm: v })} width={60} />
-            <label className="field">
-              <span className="field-label">Цвет затирки</span>
-              <input type="color" value={a.groutColor} onChange={(e) => updateAssignment(zone.id, { groutColor: e.target.value })} />
-            </label>
-          </div>
+          <NumField label="Шов" value={a.groutMm} min={0} max={30} step={0.5} onCommit={(v) => updateAssignment(zone.id, { groutMm: v })} width={60} />
+          <GroutColorField value={a.groutColor} onChange={(groutColor) => updateAssignment(zone.id, { groutColor })} />
           <div className="kv">
             <span>Точка старта</span>
             <div className="seg">

@@ -382,6 +382,54 @@ p.ok {
   color: var(--muted);
   font-size: 10.5px;
 }
+.grout-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+button.grout-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--grout);
+  border-color: rgba(29, 28, 26, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+button.grout-swatch:hover:not(:disabled) {
+  background: var(--grout);
+  border-color: var(--text);
+}
+button.grout-swatch.active {
+  background: var(--grout);
+  color: inherit;
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--text);
+}
+.grout-custom {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(29, 28, 26, 0.22);
+  overflow: hidden;
+  cursor: pointer;
+  background: conic-gradient(#e24b4b, #e8b84a, #5dbb63, #4aa3e8, #7a5de8, #e24b4b);
+}
+.grout-custom.active {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--text);
+}
+.grout-custom input[type='color'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
 td .field .unit {
   display: none;
 }
