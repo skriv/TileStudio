@@ -1,15 +1,15 @@
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Line, OrbitControls } from '@react-three/drei';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { useStore, selectZone, select, toast, saveCameraPreset, updateRender, downloadBlob, findZone, createZone, updateAssignment } from '../../state/store';
+import { useStore, selectZone, select, toast, saveCameraPreset, updateRender, downloadBlob, findZone, createZone } from '../../state/store';
 import { buildLights, buildScene, type PickInfo } from './sceneBuilder';
 import { useMaterialTextures } from './textures';
 import { cameraBus, type CameraPose } from './cameraBus';
 import { eyeLevelPose, overviewPose, topPose } from './cameraPresets';
-import type { RowOffset, TileRotation } from '../../core/tiling/layout';
 import { renderToBlob } from '../render/exportImage';
 import { mmToM } from '../../core/geometry/room';
 import { bboxOfMulti, bboxOfRing, type Vec2 } from '../../core/geometry/polygon';
@@ -160,6 +160,18 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
   return null;
 }
 
+function useNarrow(maxPx: number) {
+  const [match, setMatch] = useState(() => window.matchMedia(`(max-width: ${maxPx}px)`).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${maxPx}px)`);
+    const on = () => setMatch(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [maxPx]);
+  return match;
+}
+
 export function Viewport3D() {
   const project = useStore((s) => s.project);
   const selection = useStore((s) => s.selection);
@@ -170,6 +182,7 @@ export function Viewport3D() {
   const confirmedRooms = project.rooms.filter((r) => r.confirmed);
 
   const [drawing, setDrawing] = useState(false);
+  const narrow = useNarrow(1400);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [hover, setHover] = useState<{ roomId: RoomId; surfaceId: SurfaceId; pt: Vec2 } | null>(null);
   const draftRef = useRef<Draft | null>(null);
@@ -368,6 +381,8 @@ export function Viewport3D() {
         />
         <CameraRig controlsRef={controlsRef} />
       </Canvas>
+      {(() => {
+        const toolbar = (
       <div className="vp-toolbar">
         {project.rooms.map((r) => (
           <button
@@ -447,7 +462,10 @@ export function Viewport3D() {
         <button onClick={() => exportImage('png')}>PNG</button>
         <button onClick={() => exportImage('jpeg')}>JPG</button>
       </div>
-      {!drawing && <ZoneTileBar />}
+        );
+        const slot = narrow ? document.getElementById('app-menu-tools') : null;
+        return slot ? createPortal(toolbar, slot) : toolbar;
+      })()}
       {drawing && (
         <div className="vp-draw-hint">
           {draft?.pts.length
@@ -456,69 +474,6 @@ export function Viewport3D() {
         </div>
       )}
       <div className="vp-badge">3D Preview · растеризация WebGL2 · {project.render.outputWidth}×{project.render.outputHeight} при экспорте</div>
-    </div>
-  );
-}
-
-function ZoneTileBar() {
-  const project = useStore((s) => s.project);
-  const zoneId = useStore((s) => s.selection.zoneId);
-  const found = findZone(project, zoneId);
-  if (!found) return null;
-  const a = project.assignments.find((x) => x.zoneId === found.zone.id);
-  if (!a) return <div className="vp-tilebar">«{found.zone.name}» без плитки — нажмите плитку в библиотеке слева</div>;
-  const set = (patch: Parameters<typeof updateAssignment>[1]) => updateAssignment(found.zone.id, patch);
-  return (
-    <div className="vp-tilebar" onPointerDown={(e) => e.stopPropagation()}>
-      <b>{found.zone.name}</b>
-      <span className="muted">Поворот</span>
-      <span className="seg">
-        {([0, 90, 180, 270] as TileRotation[]).map((r) => (
-          <button key={r} className={a.rotationDeg === r ? 'active' : ''} onClick={() => set({ rotationDeg: r })}>
-            {r}°
-          </button>
-        ))}
-      </span>
-      <span className="muted">Ряды</span>
-      <span className="seg">
-        {(
-          [
-            ['none', 'прямо'],
-            ['half', '1/2'],
-            ['third', '1/3'],
-          ] as [RowOffset, string][]
-        ).map(([k, label]) => (
-          <button key={k} className={a.rowOffset === k ? 'active' : ''} onClick={() => set({ rowOffset: k })}>
-            {label}
-          </button>
-        ))}
-      </span>
-      <span className="seg">
-        <button className={a.anchor === 'origin' ? 'active' : ''} onClick={() => set({ anchor: 'origin' })}>
-          От угла
-        </button>
-        <button className={a.anchor === 'center' ? 'active' : ''} onClick={() => set({ anchor: 'center' })}>
-          По центру
-        </button>
-      </span>
-      <label className="field inline">
-        <span>Шов</span>
-        <input
-          type="number"
-          min={0}
-          max={30}
-          step={0.5}
-          value={a.groutMm}
-          onChange={(e) => set({ groutMm: Math.max(0, Number(e.target.value) || 0) })}
-        />
-        <span>мм</span>
-      </label>
-      <label className="field inline">
-        <span>Угол</span>
-        <input type="number" min={-180} max={180} step={1} value={a.gridAngleDeg} onChange={(e) => set({ gridAngleDeg: Number(e.target.value) || 0 })} />
-        <span>°</span>
-      </label>
-      <input type="color" value={a.groutColor} title="Цвет затирки" onChange={(e) => set({ groutColor: e.target.value })} />
     </div>
   );
 }

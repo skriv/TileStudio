@@ -74,13 +74,19 @@ export function TextField({ value, onCommit, width = 160 }: { value: string; onC
 }
 
 export function Section({ title, children, actions }: { title: ReactNode; children: ReactNode; actions?: ReactNode }) {
+  const [open, setOpen] = useState(true);
   return (
-    <section className="panel-section">
+    <section className={`panel-section ${open ? 'open' : 'collapsed'}`}>
       <header>
-        <h4>{title}</h4>
+        <button type="button" className="section-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          <i className="chev" />
+          <span className="section-title">{title}</span>
+        </button>
         {actions}
       </header>
-      {children}
+      <div className="section-body" hidden={!open}>
+        {children}
+      </div>
     </section>
   );
 }

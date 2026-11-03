@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { listProjects } from '../storage/db';
 import {
   openStoredProject,
@@ -23,7 +23,7 @@ const VIEWS: { id: ViewMode; label: string; key: string }[] = [
   { id: 'render', label: 'Рендер', key: '3' },
 ];
 
-function ProjectPicker() {
+function ProjectPicker({ onPicked }: { onPicked?: () => void }) {
   const [list, setList] = useState<{ id: string; name: string; updatedAt: number }[]>([]);
   const current = useStore((s) => s.project.id);
   return (
@@ -31,7 +31,11 @@ function ProjectPicker() {
       value=""
       onFocus={() => listProjects().then(setList)}
       onMouseDown={() => listProjects().then(setList)}
-      onChange={(e) => e.target.value && openStoredProject(e.target.value)}
+      onChange={(e) => {
+        if (!e.target.value) return;
+        onPicked?.();
+        void openStoredProject(e.target.value);
+      }}
       title="Проекты, сохранённые в этом браузере"
     >
       <option value="">Проекты…</option>
@@ -61,41 +65,37 @@ export function TopBar({
   const busy = useStore((s) => s.busy);
   const projectInput = useRef<HTMLInputElement>(null);
   const planInput = useRef<HTMLInputElement>(null);
+  const barRef = useRef<HTMLElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!barRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('pointerdown', onPointer);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerdown', onPointer);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+
+  const closeMenu = () => setMenuOpen(false);
 
   return (
-    <header className="topbar">
+    <header className={`topbar ${menuOpen ? 'menu-open' : ''}`} ref={barRef}>
+      <button type="button" className="menu-toggle" aria-label="Меню" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
+        <span />
+        <span />
+        <span />
+      </button>
       <div className="brand">
         Tile<span>Studio</span>
       </div>
-      <div className="menu">
-        <button
-          onClick={async () => {
-            if (confirm('Создать новый проект? Текущий останется в списке проектов браузера.')) await newProject();
-          }}
-        >
-          Новый
-        </button>
-        <button onClick={() => planInput.current?.click()}>Импорт плана</button>
-        <button onClick={() => loadPilotPlan()} title="public/samples/room_scheme.pdf">
-          Пилотный план
-        </button>
-        <ProjectPicker />
-        <button onClick={() => projectInput.current?.click()} title="Файл .tilestudio.zip">
-          Открыть файл
-        </button>
-        <button onClick={() => exportProjectFile().catch((e) => toast(String(e), 'error'))}>Экспорт проекта</button>
-        <button onClick={saveNow}>Сохранить</button>
-        <span className="sep" />
-        <button onClick={undo} disabled={!canUndo} title="Cmd/Ctrl+Z">
-          ↶
-        </button>
-        <button onClick={redo} disabled={!canRedo} title="Cmd/Ctrl+Shift+Z">
-          ↷
-        </button>
-      </div>
-      <button className="drawer-toggle" onClick={onOpenLeft}>
-        Помещения
-      </button>
       <nav className="views">
         {VIEWS.map((v) => (
           <button key={v.id} className={view === v.id ? 'active' : ''} onClick={() => setView(v.id)} title={v.key ? `Клавиша ${v.key}` : undefined}>
@@ -103,18 +103,104 @@ export function TopBar({
           </button>
         ))}
       </nav>
-      <button className="drawer-toggle" onClick={onOpenRight}>
-        Свойства
-      </button>
-      <button className="model-toggle" onClick={onModelOnly} title="Скрыть панели и оставить модель">
-        Только модель
-      </button>
-      <div className="status">
-        {busy && <span className="busy">{busy}</span>}
-        <span className="proj-name">{name}</span>
-        <span className={`save save-${saveState}`}>
-          {saveState === 'saved' ? 'Сохранено' : saveState === 'saving' ? 'Сохранение…' : saveState === 'dirty' ? 'Есть изменения' : 'Ошибка сохранения'}
-        </span>
+      <div className="top-menu">
+        <div className="status">
+          {busy && <span className="busy">{busy}</span>}
+          <span className="proj-name">{name}</span>
+          <span className={`save save-${saveState}`}>
+            {saveState === 'saved' ? 'Сохранено' : saveState === 'saving' ? 'Сохранение…' : saveState === 'dirty' ? 'Есть изменения' : 'Ошибка сохранения'}
+          </span>
+        </div>
+        <button
+          className="drawer-toggle"
+          onClick={() => {
+            closeMenu();
+            onOpenLeft();
+          }}
+        >
+          Помещения
+        </button>
+        <button
+          className="drawer-toggle"
+          onClick={() => {
+            closeMenu();
+            onOpenRight();
+          }}
+        >
+          Свойства
+        </button>
+        <button
+          className="model-toggle"
+          onClick={() => {
+            closeMenu();
+            onModelOnly();
+          }}
+          title="Скрыть панели и оставить модель"
+        >
+          Только модель
+        </button>
+        <div className="menu">
+          <button
+            onClick={async () => {
+              closeMenu();
+              if (confirm('Создать новый проект? Текущий останется в списке проектов браузера.')) await newProject();
+            }}
+          >
+            Новый
+          </button>
+          <button
+            onClick={() => {
+              closeMenu();
+              planInput.current?.click();
+            }}
+          >
+            Импорт плана
+          </button>
+          <button
+            onClick={() => {
+              closeMenu();
+              void loadPilotPlan();
+            }}
+            title="public/samples/room_scheme.pdf"
+          >
+            Пилотный план
+          </button>
+          <ProjectPicker onPicked={closeMenu} />
+          <button
+            onClick={() => {
+              closeMenu();
+              projectInput.current?.click();
+            }}
+            title="Файл .tilestudio.zip"
+          >
+            Открыть файл
+          </button>
+          <button
+            onClick={() => {
+              closeMenu();
+              exportProjectFile().catch((e) => toast(String(e), 'error'));
+            }}
+          >
+            Экспорт проекта
+          </button>
+          <button
+            onClick={() => {
+              closeMenu();
+              void saveNow();
+            }}
+          >
+            Сохранить
+          </button>
+          <div className="row">
+            <button onClick={undo} disabled={!canUndo} title="Cmd/Ctrl+Z">
+              ↶ Отменить
+            </button>
+            <button onClick={redo} disabled={!canRedo} title="Cmd/Ctrl+Shift+Z">
+              ↷ Вернуть
+            </button>
+          </div>
+        </div>
+        <div id="app-menu-tools" />
       </div>
       <input
         ref={planInput}
