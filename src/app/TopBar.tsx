@@ -67,6 +67,7 @@ export function TopBar({
   const planInput = useRef<HTMLInputElement>(null);
   const barRef = useRef<HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -84,6 +85,33 @@ export function TopBar({
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    const sync = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('webkitfullscreenchange', sync);
+    return () => {
+      document.removeEventListener('fullscreenchange', sync);
+      document.removeEventListener('webkitfullscreenchange', sync);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
+    const doc = document as Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => Promise<void> | void };
+    const active = document.fullscreenElement || doc.webkitFullscreenElement;
+    if (active) {
+      if (document.exitFullscreen) void document.exitFullscreen();
+      else void doc.webkitExitFullscreen?.();
+      return;
+    }
+    const request = el.requestFullscreen?.bind(el) ?? el.webkitRequestFullscreen?.bind(el);
+    if (!request) {
+      toast('Этот браузер не открывает страницу на весь экран.', 'error');
+      return;
+    }
+    void Promise.resolve(request()).catch(() => toast('Не удалось включить полный экран.', 'error'));
+  };
+
   const closeMenu = () => setMenuOpen(false);
 
   return (
@@ -96,13 +124,26 @@ export function TopBar({
       <div className="brand">
         Tile<span>Studio</span>
       </div>
-      <nav className="views">
-        {VIEWS.map((v) => (
-          <button key={v.id} className={view === v.id ? 'active' : ''} onClick={() => setView(v.id)} title={v.key ? `Клавиша ${v.key}` : undefined}>
-            {v.label}
-          </button>
-        ))}
-      </nav>
+      <div className="view-switch">
+        <nav className="views">
+          {VIEWS.map((v) => (
+            <button key={v.id} className={view === v.id ? 'active' : ''} onClick={() => setView(v.id)} title={v.key ? `Клавиша ${v.key}` : undefined}>
+              {v.label}
+            </button>
+          ))}
+        </nav>
+        <button
+          type="button"
+          className="model-toggle"
+          onClick={onModelOnly}
+          title="Скрыть панели и оставить модель"
+        >
+          Только модель
+        </button>
+        <button type="button" className={`fullscreen-toggle ${fullscreen ? 'active' : ''}`} onClick={toggleFullscreen}>
+          {fullscreen ? 'Exit' : 'Full screen'}
+        </button>
+      </div>
       <div className="top-menu">
         <div className="status">
           {busy && <span className="busy">{busy}</span>}
@@ -128,16 +169,6 @@ export function TopBar({
           }}
         >
           Свойства
-        </button>
-        <button
-          className="model-toggle"
-          onClick={() => {
-            closeMenu();
-            onModelOnly();
-          }}
-          title="Скрыть панели и оставить модель"
-        >
-          Только модель
         </button>
         <div className="menu">
           <button

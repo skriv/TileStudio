@@ -168,13 +168,25 @@ code {
   background: var(--line);
   margin: 0 4px;
 }
-.views {
+.view-switch {
   order: 3;
   display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0 auto;
+  flex-shrink: 0;
+}
+.views {
+  display: flex;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   overflow: hidden;
+  flex-shrink: 0;
+}
+.fullscreen-toggle,
+.model-toggle {
+  font-weight: 600;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 .views button {
@@ -186,9 +198,6 @@ code {
 }
 .views button + button {
   border-left: 1px solid var(--line);
-}
-.model-toggle {
-  order: 4;
 }
 .status {
   order: 5;
@@ -898,7 +907,7 @@ details summary {
     display: inline-flex;
     order: 0;
   }
-  .views {
+  .view-switch {
     margin: 0 0 0 auto;
   }
   .top-menu {
@@ -930,11 +939,7 @@ details summary {
     max-width: none;
     overflow: visible;
   }
-  .top-menu .model-toggle {
-    order: 0;
-  }
   .top-menu .menu button,
-  .top-menu .model-toggle,
   .top-menu .menu select {
     width: 100%;
     min-height: 40px;
